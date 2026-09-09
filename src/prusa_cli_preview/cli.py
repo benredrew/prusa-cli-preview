@@ -4,6 +4,7 @@ import argparse
 import base64
 import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -38,6 +39,19 @@ class ThumbnailSpec:
     width: int
     height: int
     format: str
+
+
+def prusa_isometric_position(
+    center: tuple[float, float, float], distance: float
+) -> tuple[float, float, float]:
+    """Camera position used by PrusaSlicer's default isometric plate view."""
+    horizontal = -0.5 * distance
+    vertical = math.sqrt(0.5) * distance
+    return (
+        center[0] + horizontal,
+        center[1] + horizontal,
+        center[2] + vertical,
+    )
 
 
 def command_text(parts: list[str]) -> str:
@@ -197,12 +211,25 @@ def render_png(stl: Path, output: Path, width: int, height: int) -> None:
     window.SetSize(width, height)
     window.AddRenderer(renderer)
 
-    renderer.ResetCamera()
     camera = renderer.GetActiveCamera()
-    camera.Azimuth(35.0)
-    camera.Elevation(25.0)
+    bounds = actor.GetBounds()
+    center = (
+        0.5 * (bounds[0] + bounds[1]),
+        0.5 * (bounds[2] + bounds[3]),
+        0.5 * (bounds[4] + bounds[5]),
+    )
+    diagonal = math.sqrt(
+        (bounds[1] - bounds[0]) ** 2
+        + (bounds[3] - bounds[2]) ** 2
+        + (bounds[5] - bounds[4]) ** 2
+    )
+    camera.SetFocalPoint(*center)
+    camera.SetPosition(*prusa_isometric_position(center, max(diagonal, 1.0)))
+    camera.SetViewUp(0.0, 0.0, 1.0)
+    camera.ParallelProjectionOn()
     camera.OrthogonalizeViewUp()
-    camera.Zoom(1.18)
+    renderer.ResetCamera()
+    camera.Zoom(1.08)
     renderer.ResetCameraClippingRange()
     window.Render()
 

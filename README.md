@@ -6,6 +6,9 @@ embeds every thumbnail requested by the selected printer preset, converts the
 result with Prusa's `libbgcode`, and validates checksums, block structure,
 thumbnail dimensions, and thumbnail formats.
 
+Preview rendering uses PrusaSlicer's default isometric build-plate convention:
+the model keeps its sliced XYZ orientation, with world Z vertical in the image.
+
 The command is installed user-wide at:
 
 ```text

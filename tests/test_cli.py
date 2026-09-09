@@ -11,11 +11,18 @@ from prusa_cli_preview.cli import (
     encode_thumbnail,
     inject_thumbnails,
     parse_thumbnail_specs,
+    prusa_isometric_position,
     thumbnail_block,
 )
 
 
 class ThumbnailTests(unittest.TestCase):
+    def test_prusa_isometric_camera_looks_from_negative_xy_and_positive_z(self):
+        x, y, z = prusa_isometric_position((10.0, 20.0, 30.0), 2.0)
+        self.assertAlmostEqual(x, 9.0)
+        self.assertAlmostEqual(y, 19.0)
+        self.assertAlmostEqual(z, 30.0 + 2.0**0.5)
+
     def test_png_encoding_allows_rendered_file_as_output(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory) / "preview.png"
