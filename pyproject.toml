@@ -1,0 +1,22 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "prusa-cli-preview"
+version = "0.1.0"
+description = "Slice with PrusaSlicer CLI and embed validated BG-code thumbnails"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "pybgcode @ git+https://github.com/prusa3d/libbgcode.git@d4da9073616d70a43c151e8c1d7fbff879d2e08a",
+  "vtk==9.6.2",
+]
+
+[project.scripts]
+slice-with-preview = "prusa_cli_preview.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/prusa_cli_preview"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
