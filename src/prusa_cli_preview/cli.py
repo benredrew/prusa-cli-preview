@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import argparse
 import base64
+import errno
 import hashlib
 import json
 import math
@@ -388,6 +389,57 @@ def sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
+def _publish_via_staging(source: Path, destination: Path) -> None:
+    """Copy source beside destination, verify it, then rename it into place.
+
+    Staging beside the requested destination makes the final rename atomic on
+    that filesystem. A failed or corrupt copy is removed before it can occupy
+    the real output name.
+    """
+    staged: Path | None = None
+    try:
+        descriptor, staged_name = tempfile.mkstemp(
+            prefix=f".{destination.name}.", suffix=".tmp", dir=destination.parent
+        )
+        staged = Path(staged_name)
+        os.close(descriptor)
+        shutil.copy2(source, staged)
+        with staged.open("rb") as stream:
+            os.fsync(stream.fileno())
+        if sha256(source) != sha256(staged):
+            raise ToolError(f"verification failed publishing {destination}")
+        os.replace(staged, destination)
+        staged = None
+    except ToolError:
+        raise
+    except OSError as exc:
+        raise ToolError(f"could not publish {destination}: {exc}") from exc
+    finally:
+        if staged is not None:
+            try:
+                staged.unlink(missing_ok=True)
+            except OSError:
+                pass
+
+
+def finalize_output(source: Path, destination: Path) -> None:
+    """Publish validated BG-code safely, including across filesystems."""
+    try:
+        os.replace(source, destination)
+        return
+    except OSError as exc:
+        if exc.errno != errno.EXDEV:
+            raise ToolError(
+                f"could not publish BG-code at {destination}: {exc}"
+            ) from exc
+
+    _publish_via_staging(source, destination)
+    try:
+        source.unlink()
+    except OSError:
+        pass
+
+
 def block_devices() -> list[dict]:
     result = run(
         ["lsblk", "--json", "--output", "NAME,LABEL,TYPE,MOUNTPOINTS"],
@@ -425,11 +477,7 @@ def copy_to_usb(source: Path, label: str, *, unmount: bool, force: bool) -> Path
     destination = mountpoint / source.name
     if destination.exists() and not force:
         raise ToolError(f"USB destination exists; use --force to replace it: {destination}")
-    shutil.copy2(source, destination)
-    with destination.open("rb") as stream:
-        os.fsync(stream.fileno())
-    if sha256(source) != sha256(destination):
-        raise ToolError("USB verification failed")
+    _publish_via_staging(source, destination)
     if unmount:
         run(["udisksctl", "unmount", "-b", device])
     return destination
@@ -529,7 +577,7 @@ def execute(args: argparse.Namespace) -> None:
         )
         convert_to_bgcode(injected_path, bgcode_path)
         metadata = validate_bgcode(bgcode_path, specs)
-        os.replace(bgcode_path, output)
+        finalize_output(bgcode_path, output)
 
         if args.keep_ascii:
             shutil.copy2(injected_path, ascii_output)
