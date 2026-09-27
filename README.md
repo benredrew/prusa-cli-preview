@@ -9,16 +9,38 @@ thumbnail dimensions, and thumbnail formats.
 Preview rendering uses PrusaSlicer's default isometric build-plate convention:
 the model keeps its sliced XYZ orientation, with world Z vertical in the image.
 
-The command is installed user-wide at:
+## Install
 
-```text
-~/.local/bin/slice-with-preview
+This repository is self-contained: it does not need Aquarium, CadKit, Fitkit,
+or any other design project. It is tested on Linux with the stable PrusaSlicer
+Flatpak.
+
+Install [uv](https://docs.astral.sh/uv/getting-started/installation/) and the
+two system prerequisites first:
+
+```bash
+flatpak install flathub com.prusa3d.PrusaSlicer
+# Install ImageMagick with your operating system's package manager.
 ```
+
+Open PrusaSlicer once to create its configuration directory and add the
+printer and filament presets you intend to use. Then install the Python tool:
+
+```bash
+git clone https://github.com/benredrew/prusa-cli-preview.git
+cd prusa-cli-preview
+uv sync
+uv run slice-with-preview --doctor
+```
+
+`--doctor` checks the PrusaSlicer version, its configuration directory, and
+ImageMagick before any model is sliced. It reports every missing prerequisite
+without touching a model or removable drive.
 
 ## Usage
 
 ```bash
-slice-with-preview model.step \
+uv run slice-with-preview model.step \
   --printer "Original Prusa MINI & MINI+ Input Shaper" \
   --filament DogPLA \
   --perimeters 5 \
@@ -36,9 +58,9 @@ Run `slice-with-preview --help` for all options.
 
 ## Machine integration
 
-The isolated runtime is in `~/.local/share/prusa-cli-preview/.venv`. Its package
-is installed editable from this repository, so source changes take effect in
-the global command immediately. Dependencies are pinned in `uv.lock`.
+`uv sync` creates an isolated `.venv` in this checkout and uses the pinned
+versions in `uv.lock`. Run commands through `uv run` from the checkout, so
+there is no hidden user-wide installation path.
 
 Both agent systems use the same canonical skill instructions:
 
@@ -49,12 +71,10 @@ Both agent systems use the same canonical skill instructions:
 
 Runtime prerequisites are the stable PrusaSlicer Flatpak and ImageMagick's
 `magick` command. PrusaSlicer preset names and configuration come from the
-user's normal Flatpak data directory.
+user's normal Flatpak data directory; pass `--datadir` to use another one.
 
 ## Verification
 
 ```bash
-~/.local/share/prusa-cli-preview/.venv/bin/python -m unittest discover -s tests -v
-python3 ~/.codex/skills/.system/skill-creator/scripts/quick_validate.py \
-  skills/slice-with-preview
+uv run python -m unittest discover -s tests -v
 ```

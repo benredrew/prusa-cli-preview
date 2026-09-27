@@ -130,6 +130,41 @@ def check_prusa_version(args: argparse.Namespace) -> str:
     return version
 
 
+def doctor(args: argparse.Namespace) -> bool:
+    """Report whether this machine can run a normal slicing job.
+
+    This intentionally checks only prerequisites, without requiring a model,
+    printer preset, or filament preset. It gives a new user an actionable
+    answer before they invest time preparing a part.
+    """
+    problems: list[str] = []
+    if shutil.which("flatpak") is None:
+        problems.append("Flatpak is not installed or not on PATH")
+    else:
+        try:
+            version = check_prusa_version(args)
+        except ToolError as exc:
+            problems.append(str(exc))
+        else:
+            print(f"PrusaSlicer: {version}")
+    if shutil.which("magick") is None:
+        problems.append("ImageMagick's `magick` command is not on PATH")
+    else:
+        print("ImageMagick: available")
+    if not args.datadir.expanduser().is_dir():
+        problems.append(f"PrusaSlicer data directory does not exist: {args.datadir}")
+    else:
+        print(f"PrusaSlicer data: {args.datadir.expanduser()}")
+
+    if problems:
+        print("Not ready:", file=sys.stderr)
+        for problem in problems:
+            print(f"- {problem}", file=sys.stderr)
+        return False
+    print("slice-with-preview: ready")
+    return True
+
+
 def export_ascii_gcode(
     model: Path, destination: Path, args: argparse.Namespace
 ) -> None:
@@ -405,14 +440,16 @@ def parser() -> argparse.ArgumentParser:
         prog="slice-with-preview",
         description="Slice a model with PrusaSlicer CLI and embed validated previews.",
     )
-    result.add_argument("model", type=Path)
-    result.add_argument("--printer", required=True, help="PrusaSlicer printer preset")
+    result.add_argument("model", nargs="?", type=Path)
+    result.add_argument("--doctor", action="store_true",
+                        help="check machine prerequisites and exit")
+    result.add_argument("--printer", help="PrusaSlicer printer preset")
     result.add_argument(
         "--print-profile",
         default=DEFAULT_PRINT_PROFILE,
         help=f"PrusaSlicer print preset (default: {DEFAULT_PRINT_PROFILE})",
     )
-    result.add_argument("--filament", required=True, help="PrusaSlicer filament preset")
+    result.add_argument("--filament", help="PrusaSlicer filament preset")
     result.add_argument("--perimeters", type=int)
     result.add_argument(
         "--supports",
@@ -433,6 +470,12 @@ def parser() -> argparse.ArgumentParser:
 
 
 def execute(args: argparse.Namespace) -> None:
+    if args.model is None:
+        raise ToolError("MODEL is required unless --doctor is used")
+    if not args.printer:
+        raise ToolError("--printer is required unless --doctor is used")
+    if not args.filament:
+        raise ToolError("--filament is required unless --doctor is used")
     model = args.model.expanduser().resolve()
     args.datadir = args.datadir.expanduser().resolve()
     if not model.is_file():
@@ -523,7 +566,12 @@ def execute(args: argparse.Namespace) -> None:
 
 def main() -> None:
     try:
-        execute(parser().parse_args())
+        args = parser().parse_args()
+        if args.doctor:
+            if not doctor(args):
+                raise SystemExit(2)
+            return
+        execute(args)
     except ToolError as exc:
         print(f"slice-with-preview: error: {exc}", file=sys.stderr)
         raise SystemExit(2) from exc

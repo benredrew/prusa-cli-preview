@@ -5,14 +5,15 @@ description: Slice FFF models with PrusaSlicer CLI while embedding printer previ
 
 # Slice with preview
 
-Use the user-wide `slice-with-preview` command. Do not recreate its thumbnail or BG-code logic in a project.
+Use `uv run slice-with-preview` from an installed Prusa CLI Preview checkout.
+Do not recreate its thumbnail or BG-code logic in a project.
 
 Require the model path plus exact PrusaSlicer printer and filament preset names. The standard print profile is `0.20mm STRUCTURAL @MINIIS 0.4`; preserve a different print profile when the user specifies one. If a material or printer choice is missing and cannot be established from the active PrusaSlicer presets, ask before slicing.
 
 Example:
 
 ```bash
-slice-with-preview model.step \
+uv run slice-with-preview model.step \
   --printer "Original Prusa MINI & MINI+ Input Shaper" \
   --filament DogPLA \
   --perimeters 5 \
@@ -36,20 +37,5 @@ Use this completion summary, in this order:
 - External dimensions: `X × Y × Z mm` from the model bounds, excluding a brim, skirt, or supports.
 
 Then report the thumbnail set, validation result, verified USB-copy result when requested, and USB unmount status. Do not substitute filament length or volume for print mass, and do not infer cost from mass.
-
-## Cylindrical test-print shortcut
-
-For a reusable hollow cylindrical fit test, use:
-
-```bash
-/home/benredrew/.local/bin/print-cylinder-test OUTER_DIAMETER_MM
-```
-
-It creates a plain 2 mm-wall, 8 mm-tall cylinder by default, slices it with
-the established MINI Input Shaper, DogPLA, and five-perimeter settings,
-validates and copies the BG-code to the mounted `PRINT_FILES` USB, safely
-unmounts it, and opens the local BG-code in PrusaSlicer's G-code preview.
-Override the printer, filament, dimensions, output directory, or USB label
-with its corresponding option. Use the normal workflow for other models.
 
 Run `slice-with-preview --help` for available flags.

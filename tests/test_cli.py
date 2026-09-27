@@ -8,6 +8,7 @@ from unittest.mock import patch
 from prusa_cli_preview.cli import (
     ThumbnailSpec,
     check_prusa_version,
+    doctor,
     encode_thumbnail,
     inject_thumbnails,
     parse_thumbnail_specs,
@@ -19,6 +20,20 @@ from prusa_cli_preview.cli import (
 
 
 class ThumbnailTests(unittest.TestCase):
+    @patch("prusa_cli_preview.cli.shutil.which")
+    @patch("prusa_cli_preview.cli.check_prusa_version")
+    def test_doctor_accepts_available_prerequisites(self, mocked_version, mocked_which):
+        mocked_which.return_value = "/usr/bin/tool"
+        mocked_version.return_value = "2.9.6"
+        with tempfile.TemporaryDirectory() as directory:
+            args = Namespace(
+                datadir=Path(directory),
+                prusa_branch="stable",
+                prusa_app="com.prusa3d.PrusaSlicer",
+                require_version="2.9",
+            )
+            self.assertTrue(doctor(args))
+
     def test_structural_is_the_default_print_profile(self):
         args = parser().parse_args(
             ["model.step", "--printer", "printer", "--filament", "filament"]
