@@ -20,6 +20,7 @@ import vtk
 
 DEFAULT_APP = "com.prusa3d.PrusaSlicer"
 DEFAULT_BRANCH = "stable"
+DEFAULT_PRINT_PROFILE = "0.20mm STRUCTURAL @MINIIS 0.4"
 DEFAULT_DATADIR = (
     Path.home()
     / ".var/app/com.prusa3d.PrusaSlicer/config/PrusaSlicer"
@@ -98,6 +99,20 @@ def profile_args(args: argparse.Namespace) -> list[str]:
     ]
 
 
+def slice_override_args(args: argparse.Namespace) -> list[str]:
+    result: list[str] = []
+    if args.perimeters is not None:
+        result += ["--perimeters", str(args.perimeters)]
+    if args.supports is not None:
+        result += [
+            "--support-material",
+            "--support-material-auto",
+            "--support-material-style",
+            args.supports,
+        ]
+    return result
+
+
 def check_prusa_version(args: argparse.Namespace) -> str:
     # The 2.9 Flatpak prints its version for --version but exits nonzero because
     # that flag is not formally supported. Its successful --help banner starts
@@ -118,9 +133,7 @@ def check_prusa_version(args: argparse.Namespace) -> str:
 def export_ascii_gcode(
     model: Path, destination: Path, args: argparse.Namespace
 ) -> None:
-    cmd = prusa_command(args) + profile_args(args)
-    if args.perimeters is not None:
-        cmd += ["--perimeters", str(args.perimeters)]
+    cmd = prusa_command(args) + profile_args(args) + slice_override_args(args)
     cmd += [
         "--no-binary-gcode",
         "--export-gcode",
@@ -394,9 +407,18 @@ def parser() -> argparse.ArgumentParser:
     )
     result.add_argument("model", type=Path)
     result.add_argument("--printer", required=True, help="PrusaSlicer printer preset")
-    result.add_argument("--print-profile", required=True, help="PrusaSlicer print preset")
+    result.add_argument(
+        "--print-profile",
+        default=DEFAULT_PRINT_PROFILE,
+        help=f"PrusaSlicer print preset (default: {DEFAULT_PRINT_PROFILE})",
+    )
     result.add_argument("--filament", required=True, help="PrusaSlicer filament preset")
     result.add_argument("--perimeters", type=int)
+    result.add_argument(
+        "--supports",
+        choices=("grid", "snug", "organic"),
+        help="enable automatically generated supports using this style",
+    )
     result.add_argument("--output", type=Path)
     result.add_argument("--thumbnails", help="override profile thumbnail sizes/formats")
     result.add_argument("--datadir", type=Path, default=DEFAULT_DATADIR)
@@ -475,6 +497,8 @@ def execute(args: argparse.Namespace) -> None:
     print(f"Filament: {args.filament}")
     if args.perimeters is not None:
         print(f"Perimeters: {args.perimeters}")
+    if args.supports is not None:
+        print(f"Supports: {args.supports} (automatic)")
     print(
         "Thumbnails: "
         + ", ".join(f"{item.width}x{item.height}/{item.format}" for item in specs)

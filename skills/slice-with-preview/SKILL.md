@@ -7,21 +7,49 @@ description: Slice FFF models with PrusaSlicer CLI while embedding printer previ
 
 Use the user-wide `slice-with-preview` command. Do not recreate its thumbnail or BG-code logic in a project.
 
-Require the model path plus exact PrusaSlicer printer, print, and filament preset names. Preserve settings the user specifies. If a material or printer choice is missing and cannot be established from the active PrusaSlicer presets, ask before slicing.
+Require the model path plus exact PrusaSlicer printer and filament preset names. The standard print profile is `0.20mm STRUCTURAL @MINIIS 0.4`; preserve a different print profile when the user specifies one. If a material or printer choice is missing and cannot be established from the active PrusaSlicer presets, ask before slicing.
 
 Example:
 
 ```bash
 slice-with-preview model.step \
   --printer "Original Prusa MINI & MINI+ Input Shaper" \
-  --print-profile "0.20mm SPEED @MINIIS 0.4" \
   --filament DogPLA \
   --perimeters 5 \
-  --output model.bgcode
+  --output model.bgcode \
+  --copy-to-usb LABEL \
+  --unmount
 ```
 
-The command refuses to overwrite files unless `--force` is supplied. Add `--copy-to-usb LABEL` only when the user requests removable-media export. Add `--unmount` only when the user asks to unmount or safely remove it. USB operations remain subject to the agent host's normal permission approval.
+The command refuses to overwrite files unless `--force` is supplied. Use `--supports grid`, `--supports snug`, or `--supports organic` when the user requests automatically generated supports in that style. Add `--copy-to-usb LABEL` only when the user requests removable-media export; when copying to USB, also add `--unmount` so the verified copy is safely unmounted at the end. USB operations remain subject to the agent host's normal permission approval.
 
-Treat success as all of the following: PrusaSlicer completed, the BG-code checksum and block sequence validate, every requested thumbnail is present at the expected dimensions, and any requested USB copy matches byte-for-byte. Report the resolved PrusaSlicer version, profiles, thumbnail set, output path, and USB unmount status.
+Treat success as all of the following: PrusaSlicer completed, the BG-code checksum and block sequence validate, every requested thumbnail is present at the expected dimensions, and any requested USB copy matches byte-for-byte.
+
+Use this completion summary, in this order:
+
+- Printer: resolved PrusaSlicer printer preset.
+- File: output filename or path.
+- Filament: resolved PrusaSlicer filament preset.
+- Estimated print time: from PrusaSlicer.
+- Print cost: from the validated BG-code's total filament-cost metadata, using the filament preset's configured currency; say `not configured` if absent.
+- Print mass: from PrusaSlicer's total filament use in grams.
+- External dimensions: `X × Y × Z mm` from the model bounds, excluding a brim, skirt, or supports.
+
+Then report the thumbnail set, validation result, verified USB-copy result when requested, and USB unmount status. Do not substitute filament length or volume for print mass, and do not infer cost from mass.
+
+## Cylindrical test-print shortcut
+
+For a reusable hollow cylindrical fit test, use:
+
+```bash
+/home/benredrew/.local/bin/print-cylinder-test OUTER_DIAMETER_MM
+```
+
+It creates a plain 2 mm-wall, 8 mm-tall cylinder by default, slices it with
+the established MINI Input Shaper, DogPLA, and five-perimeter settings,
+validates and copies the BG-code to the mounted `PRINT_FILES` USB, safely
+unmounts it, and opens the local BG-code in PrusaSlicer's G-code preview.
+Override the printer, filament, dimensions, output directory, or USB label
+with its corresponding option. Use the normal workflow for other models.
 
 Run `slice-with-preview --help` for available flags.

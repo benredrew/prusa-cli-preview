@@ -20,11 +20,15 @@ The command is installed user-wide at:
 ```bash
 slice-with-preview model.step \
   --printer "Original Prusa MINI & MINI+ Input Shaper" \
-  --print-profile "0.20mm SPEED @MINIIS 0.4" \
   --filament DogPLA \
   --perimeters 5 \
   --output model.bgcode
 ```
+
+The standard print profile is `0.20mm STRUCTURAL @MINIIS 0.4`. Pass
+`--print-profile` to select a different PrusaSlicer print preset.
+Use `--supports grid`, `--supports snug`, or `--supports organic` to enable
+automatic support generation in the selected style.
 
 Use `--copy-to-usb LABEL --unmount` for a verified removable-drive copy and
 safe unmount. Existing output files are protected unless `--force` is passed.

@@ -11,12 +11,32 @@ from prusa_cli_preview.cli import (
     encode_thumbnail,
     inject_thumbnails,
     parse_thumbnail_specs,
+    parser,
     prusa_isometric_position,
+    slice_override_args,
     thumbnail_block,
 )
 
 
 class ThumbnailTests(unittest.TestCase):
+    def test_structural_is_the_default_print_profile(self):
+        args = parser().parse_args(
+            ["model.step", "--printer", "printer", "--filament", "filament"]
+        )
+        self.assertEqual(args.print_profile, "0.20mm STRUCTURAL @MINIIS 0.4")
+
+    def test_organic_supports_enable_automatic_generation(self):
+        args = Namespace(perimeters=None, supports="organic")
+        self.assertEqual(
+            slice_override_args(args),
+            [
+                "--support-material",
+                "--support-material-auto",
+                "--support-material-style",
+                "organic",
+            ],
+        )
+
     def test_prusa_isometric_camera_looks_from_negative_xy_and_positive_z(self):
         x, y, z = prusa_isometric_position((10.0, 20.0, 30.0), 2.0)
         self.assertAlmostEqual(x, 9.0)
